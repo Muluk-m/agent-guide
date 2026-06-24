@@ -1,0 +1,35 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap');
+* { margin: 0; box-sizing: border-box; }
+body {
+  width: 1200px; height: 630px; background: #faf8f3; overflow: hidden;
+  font-family: "Space Grotesk", "PingFang SC", sans-serif; color: #2a2e3a;
+  padding: 86px 96px; position: relative;
+}
+body::after {
+  content: ""; position: absolute; right: -140px; top: -160px; width: 560px; height: 560px;
+  background: radial-gradient(circle, #f4e7e2, transparent 70%);
+}
+.mark { width: 116px; height: 116px; position: relative; z-index: 1; }
+.eyebrow { margin: 38px 0 16px; color: #b5402a; font-weight: 700; font-size: 21px; letter-spacing: .22em; }
+h1 { font-size: 98px; line-height: .98; letter-spacing: -.045em; font-weight: 700; position: relative; z-index: 1; }
+h1 i { color: #d6492f; font-style: normal; }
+.sub { margin-top: 28px; font-size: 28px; color: #5a5f6e; font-weight: 500; font-family: "PingFang SC", sans-serif; }
+.meta { position: absolute; left: 96px; bottom: 78px; font-size: 25px; color: #7a7f8c; font-weight: 500; font-family: "PingFang SC", sans-serif; }
+.url { position: absolute; right: 96px; bottom: 78px; font-size: 23px; color: #b5402a; font-weight: 700; }
+.bar { position: absolute; left: 0; bottom: 0; height: 10px; width: 100%; background: #d6492f; }
+</style></head>
+<body>
+  <svg class="mark" viewBox="0 0 40 40">
+    <rect width="40" height="40" rx="10" fill="#d6492f"/>
+    <g fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M20 9.5 L11 30 M20 9.5 L29 30 M15 21 L25 21"/></g>
+    <g fill="#fff"><circle cx="20" cy="9.5" r="3"/><circle cx="11" cy="30" r="3"/><circle cx="29" cy="30" r="3"/></g>
+  </svg>
+  <div class="eyebrow">2026 EDITION · 实战版</div>
+  <h1>Agent 全栈<i>手册</i></h1>
+  <div class="sub">Agent · 工具/MCP · RAG · Memory · 评测 · 流式交互 · 后端架构</div>
+  <div class="meta">261 道实战问答 · 14 个核心章节</div>
+  <div class="url">agent-guide.pages.dev</div>
+  <div class="bar"></div>
+</body></html>
