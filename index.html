@@ -207,6 +207,8 @@
     .answer-body p { margin: 0 0 13px; color: var(--ink-soft); font-size: 15px; line-height: 1.78; }
     .answer-body p:first-of-type { color: var(--ink); font-weight: 500; }
     .answer-body p:last-child { margin-bottom: 0; }
+    .answer-body h3 { margin: 18px 0 8px; color: var(--ink); font: 700 15px/1.35 var(--sans); letter-spacing: 0; }
+    .answer-body h3:first-child { margin-top: 0; }
     .answer-body ul, .answer-body ol { margin: 0 0 14px; padding-left: 1.35em; color: var(--ink-soft); font-size: 15px; line-height: 1.72; }
     .answer-body li { margin: .32em 0; }
     .answer-body li::marker { color: var(--accent); }
@@ -334,8 +336,127 @@
     </main>
 
   <script>
-    const deepAnswer = (judgement, implementation, tradeoff, project) =>
-      `核心判断：${judgement}\n落地方案：${implementation}\n风险与取舍：${tradeoff}\n结合你的项目：${project}`;
+    const glossary = [
+      ["Prompt Injection", "攻击者把恶意指令藏在 Agent 会读取的网页、文档、工具结果或用户输入里，诱导模型越权、泄露数据或执行非预期操作。"],
+      ["HITL", "Human-in-the-loop，人类参与关键决策或审批，常用于高风险工具调用、低置信结果和不可逆动作。"],
+      ["Checkpoint", "把 Agent 当前状态持久化到数据库或存储中，服务重启、暂停或审批后可以从一致状态继续执行。"],
+      ["RAG", "Retrieval-Augmented Generation，先从知识库检索证据，再把证据交给模型生成答案，降低幻觉并补充外部知识。"],
+      ["Embedding", "把文本、图片或其他内容编码成向量，用于相似度检索、聚类和语义匹配。"],
+      ["Rerank", "对初次召回的候选文档重新排序，通常用 cross-encoder 或更强模型提高最终证据质量。"],
+      ["Hybrid Search", "混合检索，把 BM25 等稀疏检索和向量稠密检索结合，兼顾关键词精确匹配和语义匹配。"],
+      ["BM25", "经典关键词检索算法，适合错误码、型号、专有名词等精确字符串查询。"],
+      ["HNSW", "一种近似最近邻向量索引结构，常用于向量库低延迟检索，参数会影响召回率、内存和延迟。"],
+      ["RRF", "Reciprocal Rank Fusion，按名次融合多路召回结果，避免不同检索器分数尺度不一致。"],
+      ["Tool Calling", "模型输出结构化工具调用意图，系统再校验参数、权限和业务规则后执行真实工具。"],
+      ["Function Calling", "一种工具调用协议，模型返回函数名和 JSON 参数，由应用侧执行函数并把结果回填给模型。"],
+      ["MCP", "Model Context Protocol，用统一协议让 Agent 客户端发现和调用外部工具、资源和提示模板。"],
+      ["Skill", "沉淀任务方法的能力包，通常包含触发条件、操作步骤、限制和验证方式，不只是 Prompt 模板。"],
+      ["Tool Schema", "工具参数的结构化契约，描述字段、类型、必填项、枚举和范围，用来约束模型输出。"],
+      ["Pydantic", "Python 数据校验库，常用于把模型给出的工具参数校验成可靠的结构化对象。"],
+      ["OTEL", "OpenTelemetry，可观测标准，用 span、trace、metric 记录一次请求跨组件的执行过程。"],
+      ["LangGraph", "用于构建有状态 Agent 图的框架，可以表达节点、条件边、checkpoint 和 interrupt。"],
+      ["Langfuse", "LLM 应用可观测与评测平台，用来记录 prompt、completion、trace、成本和评测结果。"],
+      ["SSE", "Server-Sent Events，服务端到浏览器的单向流式传输协议，适合模型逐 token 输出。"],
+      ["WebSocket", "浏览器和服务端的双向长连接协议，适合需要双向实时交互的场景。"],
+      ["AG-UI", "Agent 前端事件协议，把模型输出、工具调用、审批、取消和完成状态映射成前端可消费的事件。"],
+      ["Artifact", "把大结果、文件、图片或可再生内容从上下文里移到外部存储，只把引用交给模型或前端。"],
+      ["Memory", "Agent 跨轮保存和读取的用户偏好、事实或任务状态，分短期上下文和长期记忆。"],
+      ["mem0", "一种长期记忆组件，用于抽取、去重、存储和检索用户长期偏好或事实。"],
+      ["pgvector", "PostgreSQL 的向量扩展，可以在关系数据库里存向量并做相似度检索。"],
+      ["Milvus", "面向大规模向量检索的向量数据库，支持分区、索引、过滤和多副本。"],
+      ["Chroma", "轻量向量数据库，常用于原型、小规模 RAG 和本地开发。"],
+      ["Golden Set", "人工整理的一组稳定测试样本，用来回归验证模型、检索和工具链路是否退化。"],
+      ["LLM Judge", "用另一个模型按 rubric 评价输出质量，适合开放式答案，但需要校准偏差。"],
+      ["Trace", "一次请求从入口到模型、检索、工具和返回的完整链路记录，用于排障和评测。"],
+      ["Saga", "跨服务事务模式，把长事务拆成多个本地事务和补偿动作，适合分布式业务流程。"],
+      ["Outbox", "在同一本地事务里写业务数据和事件表，再异步投递消息，避免业务提交和消息发送不一致。"],
+      ["Idempotency Key", "幂等键，用业务唯一标识识别重复请求，保证重试不会重复执行副作用。"],
+      ["Circuit Breaker", "熔断器，下游持续失败时暂时停止调用，避免故障扩散，并在半开状态试探恢复。"],
+      ["RTO", "恢复时间目标，系统故障后允许多久恢复服务。"],
+      ["RPO", "恢复点目标，系统故障时最多允许丢失多久的数据。"],
+      ["Text2SQL", "把自然语言问题转成 SQL 查询，生产中必须通过 AST、权限、只读角色和成本闸门约束。"],
+      ["PII", "Personally Identifiable Information，能识别个人身份的信息，如手机号、身份证号、邮箱和地址。"],
+      ["KV Cache", "大模型推理时缓存历史 token 的 key/value，用显存换取后续 token 解码速度。"],
+      ["TTFT", "Time To First Token，从请求发出到第一个 token 返回的时间，是流式交互的重要体验指标。"],
+      ["TPOT", "Time Per Output Token，生成阶段每个输出 token 的平均耗时。"],
+      ["vLLM", "高吞吐 LLM 推理框架，核心能力包括 PagedAttention、连续批处理和高效 KV Cache 管理。"],
+      ["PagedAttention", "vLLM 的注意力内存管理机制，把 KV Cache 像分页内存一样管理，减少显存碎片。"],
+      ["Quantization", "量化，把模型权重或 KV Cache 用更低位宽表示，以降低显存和提升吞吐，但可能损失质量。"],
+      ["Transformer", "现代大模型的基础神经网络架构，核心是自注意力机制和前馈网络。"],
+      ["Sampling", "采样，模型根据概率分布选择下一个 token，temperature、top-p 等参数会影响随机性。"],
+      ["Temperature", "控制采样随机性的参数，越高越发散，越低越确定。"],
+      ["Top-p", "核采样参数，只在累计概率达到 p 的候选 token 中采样，用来控制输出多样性。"],
+      ["Soft Landing", "Agent 超步数、超预算或下游失败时，不直接崩溃，而是总结已完成内容、失败原因和下一步。"],
+      ["Stuck Detector", "检测 Agent 是否陷入无进展循环的机制，常用步骤、状态指纹或重复工具调用判断。"],
+      ["Multi-Agent", "多个 Agent 按角色、权限或上下文分工协作的架构，适合并行或强职责隔离任务。"]
+    ];
+
+    const glossaryAlias = new Map([
+      ["prompt injection", "Prompt Injection"], ["提示注入", "Prompt Injection"],
+      ["human-in-the-loop", "HITL"], ["interrupt", "HITL"],
+      ["checkpoint", "Checkpoint"], ["checkpointer", "Checkpoint"],
+      ["function calling", "Function Calling"], ["tool calling", "Tool Calling"],
+      ["tool schema", "Tool Schema"], ["schema", "Tool Schema"],
+      ["hybrid", "Hybrid Search"], ["混合检索", "Hybrid Search"],
+      ["rerank", "Rerank"], ["embedding", "Embedding"],
+      ["golden set", "Golden Set"], ["judge", "LLM Judge"],
+      ["idempotency", "Idempotency Key"], ["幂等", "Idempotency Key"],
+      ["熔断", "Circuit Breaker"], ["circuit breaker", "Circuit Breaker"],
+      ["量化", "Quantization"], ["采样", "Sampling"],
+      ["软着陆", "Soft Landing"], ["循环检测", "Stuck Detector"],
+      ["多agent", "Multi-Agent"], ["multi-agent", "Multi-Agent"]
+    ]);
+
+    const glossaryMap = new Map(glossary);
+    const firstSentence = (text) => {
+      const plain = text.replace(/```[\s\S]*?```/g, "").replace(/\n+/g, " ").trim();
+      const m = plain.match(/^(.{18,180}?[。！？.!?]|.{18,160}(?=——)|.{18,160})/);
+      return (m ? m[0] : plain.slice(0, 160)).trim();
+    };
+    const inferFocus = (question, note, tags = []) => {
+      const all = `${question} ${note || ""} ${tags.join(" ")}`.toLowerCase();
+      if (/安全|越权|prompt|pii|权限|注入/.test(all)) return "面试官想看你是否把模型输出当成不可信输入，能不能把权限、审批、审计和副作用控制放到机制层，而不是只靠 Prompt。";
+      if (/rag|检索|向量|embedding|知识库|文档|召回/.test(all)) return "面试官想看你能否把 RAG 拆成数据治理、召回、重排、生成和评测几层定位，而不是只说“加向量库”。";
+      if (/流式|sse|websocket|前端|断线|markdown/.test(all)) return "面试官想看你是否理解流式体验背后的协议、状态机、取消、重连和前端渲染边界。";
+      if (/评测|指标|成功率|可观测|trace|成本/.test(all)) return "面试官想看你能否用可复现指标证明 Agent 真的变好，同时识别成本、步数和质量之间的取舍。";
+      if (/部署|后端|架构|高可用|灾备|队列|缓存|数据库/.test(all)) return "面试官想看你是否具备生产工程视角，能把状态、并发、恢复、限流、降级和运维放进设计里。";
+      if (/工具|mcp|function|calling|skill/.test(all)) return "面试官想看你是否理解模型只负责提出动作，真实执行必须经过 Schema、权限、业务校验和审计。";
+      if (/memory|上下文|context|记忆/.test(all)) return "面试官想看你是否能管理有限上下文，区分短期上下文、长期记忆、压缩、写入门槛和冲突处理。";
+      if (/项目|经历|自我介绍|选型|主导|失败|入职/.test(all)) return "面试官想看答案是否真实可追问：你做了什么、为什么这么做、结果怎么量化、边界在哪里。";
+      if (/模型|llm|transformer|采样|推理|量化|gpu/.test(all)) return "面试官想看你是否理解模型能力、推理成本、路由策略和稳定性之间的工程取舍。";
+      return "面试官想看你能否先给判断，再把方案拆成可落地步骤，并主动说明边界、风险和取舍。";
+    };
+    const extractPoints = (answer) => {
+      const points = [];
+      for (const line of answer.split(/\n/)) {
+        const m = line.match(/^[-*]\s+\*\*(.+?)\*\*[:：]?(.*)$/) || line.match(/^\d+\.\s+\*\*(.+?)\*\*[:：]?(.*)$/);
+        if (m) points.push(`${m[1]}${m[2] ? `：${m[2].trim()}` : ""}`.trim());
+        if (points.length >= 4) break;
+      }
+      if (!points.length) {
+        const paras = answer.split(/\n\n+/).map(x => x.trim()).filter(Boolean).slice(0, 3);
+        for (const p of paras) points.push(p.replace(/\n/g, " ").slice(0, 120));
+      }
+      return points.slice(0, 4);
+    };
+    const inferGlossary = (question, answer, tags = []) => {
+      const hay = `${question} ${answer} ${tags.join(" ")}`.toLowerCase();
+      const picked = [];
+      for (const [term] of glossary) if (hay.includes(term.toLowerCase())) picked.push(term);
+      for (const [alias, term] of glossaryAlias) if (hay.includes(alias) && !picked.includes(term)) picked.push(term);
+      for (const tag of tags) if (glossaryMap.has(tag) && !picked.includes(tag)) picked.push(tag);
+      return picked.slice(0, 5).map(term => `- **${term}**: ${glossaryMap.get(term)}`).join("\n") || "- **关键名词**: 本题没有特别生僻的专有名词，回答时重点解释你的判断标准、执行边界和取舍依据。";
+    };
+    const formatAnswer = (question, answer, note = "", tags = []) => {
+      if (/\*\*直接回答\*\*|###\s+直接回答/.test(answer)) return answer;
+      const direct = firstSentence(answer);
+      const points = extractPoints(answer).map(p => `- ${p}`).join("\n");
+      return `### 直接回答\n${direct}\n\n### 本题想考察什么\n${inferFocus(question, note, tags)}\n\n### 回答例子\n可以这样答：\n\n${answer}\n\n### 过程中的技术点\n${points}\n\n### 关键名词解释\n${inferGlossary(question, answer, tags)}`;
+    };
+    const deepAnswer = (judgement, implementation, tradeoff, project) => {
+      const raw = `${judgement}\n\n${implementation}\n\n${tradeoff}\n\n${project}`;
+      return `### 直接回答\n${judgement}\n\n### 本题想考察什么\n这类题主要考察你能不能先给清晰判断，再把落地路径、风险边界和项目证据讲完整。\n\n### 回答例子\n可以这样答：\n\n${implementation}\n\n${tradeoff}\n\n${project}\n\n### 过程中的技术点\n- 先定义判断口径，避免只背概念。\n- 给出可执行链路、参数或代码边界，让答案能被追问。\n- 主动说明风险、取舍和当前项目中的真实边界。\n\n### 关键名词解释\n${inferGlossary("", raw, [])}`;
+    };
 
     const chapters = [
 {
@@ -1455,6 +1576,12 @@
       ...productionDeepDiveC,
       ...productionDeepDiveD
     );
+
+    chapters.forEach((chapter) => {
+      chapter.items.forEach((item) => {
+        item[1] = formatAnswer(item[0], item[1], item[2], item[3] || []);
+      });
+    });
 
     const state = {
       mastered: new Set(JSON.parse(localStorage.getItem("agent-interview-mastered") || "[]")),
